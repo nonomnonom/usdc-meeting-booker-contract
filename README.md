@@ -13,7 +13,7 @@ Smart contract project for handling USDC payments on Base Sepolia testnet.
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/nonomnouns/usdc-meeting-booker-contract.git
 ```
 
 2. Install dependencies:
@@ -112,5 +112,4 @@ bun run index.ts withdraw  # Includes unauthorized access test
 ## Notes
 
 - Make sure to have sufficient Base Sepolia ETH for gas fees
-- Test USDC tokens are required for payments
-- Keep your private key secure and never commit it to git 
+- Test USDC tokens are required for payments use another token for test, and deploy in your contract
