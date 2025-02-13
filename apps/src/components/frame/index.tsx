@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, CreditCard } from "lucide-react";
 import sdk from "@farcaster/frame-sdk";
 import { Scheduler } from "./scheduler";
 import { Payment } from "./payment";
+import { cn } from "@/lib/utils";
 
 interface FrameContext {
   user?: {
@@ -50,6 +51,11 @@ export default function Frame() {
     };
   }, []);
 
+  const handleBookingCreated = useCallback((id: string) => {
+    setBookingId(id);
+    setActiveTab("payment");
+  }, []);
+
   if (!isSDKReady) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -58,6 +64,13 @@ export default function Frame() {
     );
   }
 
+  const safeAreaStyles = {
+    paddingTop: context?.client?.safeAreaInsets?.top ?? 16,
+    paddingLeft: context?.client?.safeAreaInsets?.left ?? 16,
+    paddingRight: context?.client?.safeAreaInsets?.right ?? 16,
+    paddingBottom: context?.client?.safeAreaInsets?.bottom ?? 0,
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-200 to-stone-300">
       <Tabs
@@ -65,19 +78,9 @@ export default function Frame() {
         onValueChange={setActiveTab}
         className="h-full flex flex-col"
       >
-        <div
-          className="flex-1"
-          style={{
-            paddingTop: `${context?.client?.safeAreaInsets?.top || 16}px`,
-            paddingLeft: `${context?.client?.safeAreaInsets?.left || 16}px`,
-            paddingRight: `${context?.client?.safeAreaInsets?.right || 16}px`,
-          }}
-        >
+        <div className={cn("flex-1", "p-4")} style={safeAreaStyles}>
           <TabsContent value="schedule" className="m-0 h-full">
-            <Scheduler onBookingCreated={(id) => {
-              setBookingId(id);
-              setActiveTab("payment");
-            }} />
+            <Scheduler onBookingCreated={handleBookingCreated} />
           </TabsContent>
 
           <TabsContent value="payment" className="m-0 h-full">
@@ -86,11 +89,11 @@ export default function Frame() {
         </div>
 
         <TabsList
-          className="fixed bottom-0 left-0 right-0 grid grid-cols-2 gap-4 bg-white h-16 border-t shadow-lg max-w-2xl mx-auto z-50 rounded-none px-4"
-          style={{
-            marginBottom: 0,
-            paddingBottom: `${context?.client?.safeAreaInsets?.bottom || 0}px`,
-          }}
+          className={cn(
+            "fixed bottom-0 left-0 right-0 grid grid-cols-2 gap-4 bg-white h-16 border-t shadow-lg max-w-2xl mx-auto z-50 rounded-none px-4",
+            "mb-0"
+          )}
+          style={{ paddingBottom: context?.client?.safeAreaInsets?.bottom ?? 0 }}
         >
           <TabsTrigger
             value="schedule"

@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import sdk from "@farcaster/frame-sdk";
 import type { CalBooking } from "@/types/cal.com";
-import type { Payment as PaymentType } from "@/types/payment";
 import { CONTRACT_ADDRESS, USDC_ADDRESS } from "@/utils/constant/contracts";
 import ABI from "@/utils/constant/abis";
+import { savePayment, updatePaymentStatus } from "@/lib/supbase/client";
 
 interface PaymentProps {
   bookingId: string | null;
@@ -20,14 +20,15 @@ export function Payment({ bookingId }: PaymentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [booking, setBooking] = useState<CalBooking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isApprovalStep, setIsApprovalStep] = useState(true);
   const { address, isConnected } = useAccount();
-  const [txHash, setTxHash] = useState<string | null>(null);
   const publicClient = usePublicClient();
 
   const {
     data: hash,
     isPending,
     sendTransaction,
+    error: txError
   } = useSendTransaction();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -46,7 +47,10 @@ export function Payment({ bookingId }: PaymentProps) {
 
       try {
         const response = await fetch(`/api/bookings/${bookingId}`);
-        if (!response.ok) throw new Error("Failed to fetch booking");
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to fetch booking");
+        }
         const data = await response.json();
         setBooking(data);
       } catch (err) {
@@ -60,95 +64,132 @@ export function Payment({ bookingId }: PaymentProps) {
   }, [bookingId]);
 
   const handlePayment = useCallback(async () => {
-    if (!booking || !address || !publicClient) return;
+    if (!booking || !address || !publicClient) {
+      setError("Missing required data for payment");
+      return;
+    }
 
     try {
+      setError(null);
       const context = await sdk.context;
       const paymentAmount = parseEther("250"); // Fixed amount of 250 USDC
 
-      // First approve USDC spending
-      const { request: approveRequest } = await publicClient.simulateContract({
-        account: address,
-        address: USDC_ADDRESS as `0x${string}`,
-        abi: [{
-          inputs: [
-            { name: "spender", type: "address" },
-            { name: "amount", type: "uint256" }
+      if (isApprovalStep) {
+        // First approve USDC spending
+        const { request: approveRequest } = await publicClient.simulateContract({
+          account: address,
+          address: USDC_ADDRESS as `0x${string}`,
+          abi: [{
+            inputs: [
+              { name: "spender", type: "address" },
+              { name: "amount", type: "uint256" }
+            ],
+            name: "approve",
+            outputs: [{ name: "", type: "bool" }],
+            stateMutability: "nonpayable",
+            type: "function"
+          }],
+          functionName: "approve",
+          args: [CONTRACT_ADDRESS, paymentAmount],
+        });
+
+        await sendTransaction(approveRequest);
+        setIsApprovalStep(false);
+      } else {
+        // Save initial payment record before making the payment
+        if (context.user?.fid && bookingId) {
+          await savePayment({
+            fid: context.user.fid.toString(),
+            booking_id: bookingId,
+            amount: "250",
+            status: "PENDING"
+          });
+        }
+
+        // Then make the payment
+        const { request: paymentRequest } = await publicClient.simulateContract({
+          account: address,
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: ABI,
+          functionName: "makeUSDCPayment",
+          args: [
+            context.user?.fid.toString() || "0",
+            booking.responses.name.value,
+            booking.responses.email.value,
+            booking.responses.notes?.value || "",
+            BigInt(new Date(booking.startTime).getTime() / 1000),
+            paymentAmount,
+            booking.responses.guests?.value || [],
           ],
-          name: "approve",
-          outputs: [{ name: "", type: "bool" }],
-          stateMutability: "nonpayable",
-          type: "function"
-        }],
-        functionName: "approve",
-        args: [CONTRACT_ADDRESS, paymentAmount],
-      });
+        });
 
-      await sendTransaction(approveRequest);
-
-      // Then make the payment
-      const { request: paymentRequest } = await publicClient.simulateContract({
-        account: address,
-        address: CONTRACT_ADDRESS as `0x${string}`,
-        abi: ABI,
-        functionName: "makeUSDCPayment",
-        args: [
-          context.user?.fid.toString() || "0",
-          booking.responses.name,
-          booking.responses.email,
-          booking.responses.notes || "",
-          BigInt(new Date(booking.startTime).getTime() / 1000),
-          paymentAmount,
-          [], // No guest emails for now
-        ],
-      });
-
-      await sendTransaction(paymentRequest);
+        await sendTransaction(paymentRequest);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment failed");
+      console.error("Payment error:", err);
+      // Update payment status to FAILED if error occurs
+      const context = await sdk.context;
+      if (context.user?.fid && bookingId) {
+        await updatePaymentStatus(bookingId, "FAILED");
+      }
+      setError(
+        err instanceof Error 
+          ? err.message 
+          : txError?.message || "Payment failed"
+      );
+      // Reset approval step if there was an error
+      setIsApprovalStep(true);
     }
-  }, [booking, address, sendTransaction, publicClient]);
+  }, [booking, address, sendTransaction, publicClient, bookingId, isApprovalStep, txError]);
 
   // Handle successful payment
   useEffect(() => {
-    if (isConfirmed && txHash && bookingId) {
+    if (isConfirmed && hash && bookingId) {
       const updateBooking = async () => {
         try {
-          await fetch(`/api/bookings/${bookingId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              status: "ACCEPTED"
-            }),
-          });
-
-          // Send success notification
-          const context = await sdk.context;
-          if (context.user?.fid) {
-            await fetch("/api/notifications", {
-              method: "POST",
+          if (!isApprovalStep) {
+            // Only update statuses after the actual payment (not the approval)
+            // Update booking status in Cal.com
+            await fetch(`/api/bookings/${bookingId}`, {
+              method: "PATCH",
               headers: {
                 "Content-Type": "application/json",
-                "X-Skip-Rate-Limit": "true",
               },
               body: JSON.stringify({
-                fid: context.user.fid,
-                notificationId: txHash,
-                title: "Payment Successful! 🎉",
-                body: "Your Life Advice session has been booked and paid for.",
-                priority: "high",
+                status: "ACCEPTED"
               }),
             });
+
+            // Update payment status in Supabase
+            const context = await sdk.context;
+            if (context.user?.fid) {
+              await updatePaymentStatus(bookingId, "COMPLETED", hash);
+
+              // Send success notification
+              await fetch("/api/notifications", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Skip-Rate-Limit": "true",
+                },
+                body: JSON.stringify({
+                  fid: context.user.fid,
+                  notificationId: hash,
+                  title: "Payment Successful! 🎉",
+                  body: "Your Life Advice session has been booked and paid for.",
+                  priority: "high",
+                }),
+              });
+            }
           }
         } catch (error) {
           console.error("Failed to update booking status:", error);
+          setError("Payment completed but failed to update booking status");
         }
       };
       updateBooking();
     }
-  }, [isConfirmed, txHash, bookingId]);
+  }, [isConfirmed, hash, bookingId, isApprovalStep]);
 
   if (isLoading) {
     return (
@@ -164,7 +205,10 @@ export function Payment({ bookingId }: PaymentProps) {
         <CardContent className="pt-6">
           <div className="text-center text-red-500">{error}</div>
           <Button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              setError(null);
+              setIsApprovalStep(true);
+            }}
             className="mt-4 w-full"
           >
             Retry
@@ -210,10 +254,10 @@ export function Payment({ bookingId }: PaymentProps) {
             {isPending || isConfirming ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Processing...
+                {isApprovalStep ? "Approving..." : "Processing Payment..."}
               </>
             ) : (
-              "Pay with USDC"
+              isApprovalStep ? "Approve USDC" : "Complete Payment"
             )}
           </Button>
         </div>

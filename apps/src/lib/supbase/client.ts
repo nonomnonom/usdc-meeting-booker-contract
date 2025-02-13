@@ -1,4 +1,4 @@
-/**
+ /**
  * Supabase Client Configuration
  * Handles database operations for notifications and announcements.
  * Provides persistent storage for notification tokens and announcement data.
@@ -29,7 +29,70 @@ export type NotificationToken = {
   created_at: string
 }
 
+/**
+ * Type definition for payment history
+ */
+export type PaymentHistory = {
+  id: number
+  fid: string
+  booking_id: string
+  amount: string
+  status: 'PENDING' | 'COMPLETED' | 'FAILED'
+  transaction_hash?: string
+  created_at: string
+  updated_at?: string
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+/**
+ * Saves a payment record to the database
+ */
+export async function savePayment(payment: Omit<PaymentHistory, 'id' | 'created_at' | 'updated_at'>) {
+  const { error } = await supabase
+    .from('payment_history')
+    .insert([{ 
+      ...payment, 
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }])
+  
+  if (error) throw error
+}
+
+/**
+ * Updates a payment's status in the database
+ */
+export async function updatePaymentStatus(
+  bookingId: string,
+  status: PaymentHistory['status'],
+  transactionHash?: string
+) {
+  const { error } = await supabase
+    .from('payment_history')
+    .update({ 
+      status,
+      transaction_hash: transactionHash,
+      updated_at: new Date().toISOString()
+    })
+    .eq('booking_id', bookingId)
+  
+  if (error) throw error
+}
+
+/**
+ * Gets payment history for a user
+ */
+export async function getPaymentHistory(fid: string) {
+  const { data, error } = await supabase
+    .from('payment_history')
+    .select('*')
+    .eq('fid', fid)
+    .order('created_at', { ascending: false })
+  
+  if (error) throw error
+  return data as PaymentHistory[]
+}
 
 /**
  * Retrieves all announcements from the database

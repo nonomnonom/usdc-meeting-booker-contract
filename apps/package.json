@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@calcom/atoms": "^1.0.88",
+    "@calcom/embed-react": "^1.5.2",
     "@farcaster/auth-kit": "^0.6.0",
     "@farcaster/frame-core": "^0.0.24",
     "@farcaster/frame-node": "^0.0.13",

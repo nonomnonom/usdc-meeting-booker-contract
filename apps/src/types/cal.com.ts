@@ -1,18 +1,55 @@
 export type CalBooking = {
   id: string;
   uid: string;
-  userId: number;
-  eventTypeId: number;
+  type: string;
+  title: string;
+  description: string;
+  additionalNotes: string;
+  customInputs: Record<string, any>;
   startTime: string;
   endTime: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED';
-  title: string;
-  description?: string;
+  organizer: {
+    id: number;
+    name: string;
+    email: string;
+    username: string;
+    timeZone: string;
+    language: {
+      locale: string;
+    };
+    timeFormat: string;
+  };
   responses: {
+    name: {
+      label: string;
+      value: string;
+    };
+    email: {
+      label: string;
+      value: string;
+    };
+    notes?: {
+      label: string;
+      value?: string;
+    };
+    guests?: {
+      label: string;
+      value?: string[];
+    };
+  };
+  attendees: Array<{
     email: string;
     name: string;
-    notes?: string;
-  };
+    timeZone: string;
+    language: {
+      locale: string;
+    };
+  }>;
+  location: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELED';
+  price: number;
+  currency: string;
+  metadata?: Record<string, any>;
 };
 
 export type CalEventType = {

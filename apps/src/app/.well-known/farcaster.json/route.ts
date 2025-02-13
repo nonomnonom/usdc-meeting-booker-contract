@@ -1,3 +1,13 @@
+/// <reference types="node" />
+
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      NEXT_PUBLIC_URL: string;
+    }
+  }
+}
+
 export async function GET() {
     const appUrl = process.env.NEXT_PUBLIC_URL;
   
