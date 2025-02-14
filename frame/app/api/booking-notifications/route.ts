@@ -3,10 +3,10 @@
  * Handles sending notifications to Farcaster users who have enabled notifications for the frame.
  * Implements the Frames v2 notification protocol with proper error handling and rate limiting.
  */
-import { NextRequest } from 'next/server'
-import { getNotificationTokens, removeNotificationToken } from '@/lib/db/supbase'
-import { getCachedNotificationToken, removeCachedNotificationToken } from '@/lib/db/kv'
-import { z } from 'zod'
+import { NextRequest } from 'next/server';
+import { getNotificationTokens, removeNotificationToken } from '@/lib/db/supbase';
+import { getCachedNotificationToken, removeCachedNotificationToken } from '@/lib/db/kv';
+import { z } from 'zod';
 
 /**
  * Validation schema for notification requests
@@ -17,10 +17,15 @@ import { z } from 'zod'
  */
 const notificationSchema = z.object({
   fid: z.number(),
-  title: z.string().max(32),
-  body: z.string().max(128),
-  notificationId: z.string().max(128)
-})
+  type: z.enum(['booking', 'payment']),
+  referenceId: z.string().max(128),
+  data: z.object({
+    name: z.string().optional(),
+    date: z.string().optional(),
+    amount: z.string().optional(),
+    txHash: z.string().optional()
+  })
+});
 
 /**
  * Removes an invalid notification token from both Redis cache and Supabase
@@ -34,9 +39,9 @@ async function removeInvalidToken(fid: number, token: string) {
     await Promise.all([
       removeNotificationToken(fid),
       removeCachedNotificationToken(fid)
-    ])
+    ]);
   } catch (error) {
-    console.error('Failed to remove invalid token:', error)
+    console.error('Failed to remove invalid token:', error);
   }
 }
 
@@ -70,45 +75,45 @@ async function sendNotification(url: string, token: string, data: NotificationDa
         ...data,
         tokens: [token]
       })
-    })
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed to send notification: ${response.statusText}`)
+      throw new Error(`Failed to send notification: ${response.statusText}`);
     }
 
-    const result = await response.json()
+    const result = await response.json();
     
     // Handle response according to Frames v2 spec
     if (result.result) {
-      const { successfulTokens, invalidTokens, rateLimitedTokens } = result.result
+      const { successfulTokens, invalidTokens, rateLimitedTokens } = result.result;
       
       // Clean up invalid tokens
       if (invalidTokens?.length > 0) {
         await Promise.all(
           invalidTokens.map((invalidToken: string) => removeInvalidToken(data.fid, invalidToken))
-        )
+        );
       }
       
       // Return success only if we have successful tokens
       if (successfulTokens?.length > 0) {
-        return true
+        return true;
       }
       
       // Handle rate limited tokens according to spec
       if (rateLimitedTokens?.length > 0 && !skipRateLimit) {
-        throw new Error('Rate limited')
+        throw new Error('Rate limited');
       }
 
       // If skipping rate limit, consider it a success even if rate limited
       if (skipRateLimit && rateLimitedTokens?.length > 0) {
-        return true
+        return true;
       }
     }
     
-    return false
+    return false;
   } catch (error: unknown) {
-    console.error('Failed to send notification:', error)
-    throw error
+    console.error('Failed to send notification:', error);
+    throw error;
   }
 }
 
@@ -122,84 +127,91 @@ async function sendNotification(url: string, token: string, data: NotificationDa
  */
 export async function POST(request: NextRequest) {
   try {
-    const skipRateLimit = request.headers.get('X-Skip-Rate-Limit') === 'true'
-    const body = await request.json()
-    const result = notificationSchema.safeParse(body)
+    const skipRateLimit = request.headers.get('X-Skip-Rate-Limit') === 'true';
+    const body = await request.json();
+    const result = notificationSchema.safeParse(body);
     
     if (!result.success) {
       return Response.json({ 
         success: false, 
         errors: result.error.errors 
-      }, { status: 400 })
+      }, { status: 400 });
     }
 
-    const { fid, title, body: notifBody, notificationId } = result.data
+    const { fid, type, referenceId, data } = result.data;
     
-    try {
-      // Try Redis cache first for better performance
-      const cached = await getCachedNotificationToken(fid)
-      if (cached) {
-        const { token, url } = cached
-        const success = await sendNotification(url, token, {
-          fid,
-          notificationId,
-          title,
-          body: notifBody,
-          targetUrl: process.env.NEXT_PUBLIC_URL!
-        }, skipRateLimit)
-        
-        if (success) {
-          return Response.json({ success: true })
-        }
-      }
-
-      // Fallback to Supabase if cache miss or notification failed
-      const tokens = await getNotificationTokens(fid)
-      if (!tokens.length) {
-        return Response.json({ 
-          success: false, 
-          error: 'No notification tokens found' 
-        }, { status: 404 })
-      }
-
-      // Try all available tokens
-      const results = await Promise.allSettled(
-        tokens.map(({ token, url }) =>
-          sendNotification(url, token, {
-            fid,
-            notificationId,
-            title,
-            body: notifBody,
-            targetUrl: process.env.NEXT_PUBLIC_URL!
-          }, skipRateLimit)
-        )
-      )
-
-      // Consider success if any token worked
-      const successful = results.some(
-        result => result.status === 'fulfilled' && result.value === true
-      )
+    // Try Redis cache first for better performance
+    const cached = await getCachedNotificationToken(fid);
+    if (cached) {
+      const { token, url } = cached;
       
-      if (!successful) {
-        throw new Error('All notification attempts failed')
-      }
+      let notificationData = {
+        notificationId: `${type}:${referenceId}`,
+        title: type === 'booking' 
+          ? "New Booking Confirmed! 📅"
+          : "Payment Successful! 💰",
+        body: type === 'booking'
+          ? `Booking confirmed for ${data.name} on ${data.date}`
+          : `Payment of ${data.amount} USDC received. Transaction: ${data.txHash}`,
+        targetUrl: process.env.NEXT_PUBLIC_URL!,
+        fid
+      };
 
-      return Response.json({ success: true })
-    } catch (error) {
-      throw error
+      const success = await sendNotification(url, token, notificationData, skipRateLimit);
+      
+      if (success) {
+        return Response.json({ success: true });
+      }
     }
+
+    // Fallback to Supabase if cache miss or notification failed
+    const tokens = await getNotificationTokens(fid);
+    if (!tokens.length) {
+      return Response.json({ 
+        success: false, 
+        error: 'No notification tokens found' 
+      }, { status: 404 });
+    }
+
+    // Try all available tokens
+    const results = await Promise.allSettled(
+      tokens.map(({ token, url }) =>
+        sendNotification(url, token, {
+          notificationId: `${type}:${referenceId}`,
+          title: type === 'booking' 
+            ? "New Booking Confirmed! 📅"
+            : "Payment Successful! 💰",
+          body: type === 'booking'
+            ? `Booking confirmed for ${data.name} on ${data.date}`
+            : `Payment of ${data.amount} USDC received. Transaction: ${data.txHash}`,
+          targetUrl: process.env.NEXT_PUBLIC_URL!,
+          fid
+        }, skipRateLimit)
+      )
+    );
+
+    // Consider success if any token worked
+    const successful = results.some(
+      result => result.status === 'fulfilled' && result.value === true
+    );
+    
+    if (!successful) {
+      throw new Error('All notification attempts failed');
+    }
+
+    return Response.json({ success: true });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === 'Rate limited' && !request.headers.get('X-Skip-Rate-Limit')) {
       return Response.json({ 
         success: false, 
         error: 'Rate limited. Please try again later.' 
-      }, { status: 429 })
+      }, { status: 429 });
     }
     
-    console.error('Failed to send notification:', error)
+    console.error('Failed to send notification:', error);
     return Response.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    }, { status: 500 });
   }
 } 

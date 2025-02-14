@@ -4,8 +4,8 @@ import "@/app/globals.css";
 import { Providers } from "@/app/providers";
 
 export const metadata: Metadata = {
-  title: "Native Swap",
-  description: "The official Farcaster Frame for swapping Native.",
+  title: "Life Advice",
+  description: "The official Farcaster Frame for life advice.",
 };
 
 export default function RootLayout({

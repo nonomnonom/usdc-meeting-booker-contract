@@ -80,7 +80,12 @@ export function Reviews() {
 
       <div className="mt-4 flex justify-center space-x-2">
         {reviews.map((_, index) => (
-          <button key={index} onClick={() => setCurrentIndex(index)} className="group relative">
+          <button 
+            key={index} 
+            onClick={() => setCurrentIndex(index)} 
+            className="group relative"
+            aria-label={`View review ${index + 1} of ${reviews.length}`}
+          >
             <div
               className={cn(
                 "h-2 w-2 rounded-full transition-all duration-300",

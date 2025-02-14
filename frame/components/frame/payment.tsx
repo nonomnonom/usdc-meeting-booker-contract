@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { parseUnits } from "viem";
+import { parseUnits, parseEther } from "viem";
 import sdk from "@farcaster/frame-sdk";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -100,6 +100,7 @@ const HistoryBookingCard = ({ booking, onCardClick }: {
 export default function Payment() {
   const [isChecked, setIsChecked] = useState(false);
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [selectedForDialog, setSelectedForDialog] = useState<any>(null);
   const [userFid, setUserFid] = useState<number | null>(null);
@@ -107,6 +108,8 @@ export default function Payment() {
   const [historyBookings, setHistoryBookings] = useState<any[]>([]);
   const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>();
   const [paymentHash, setPaymentHash] = useState<`0x${string}` | undefined>();
+  const [approvalStatus, setApprovalStatus] = useState<'idle' | 'pending' | 'approved' | 'error'>('idle');
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'confirmed' | 'error'>('idle');
 
   const { address, isConnected } = useAccount();
   const { writeContract, isPending, writeContractAsync } = useWriteContract();
@@ -161,34 +164,58 @@ export default function Payment() {
     loadBookings();
   }, [userFid]);
 
+  const handleApprove = async () => {
+    if (!address || !userFid) {
+      console.error('No address or FID available');
+      return;
+    }
+
+    setApprovalStatus('pending');
+    try {
+
+      const paymentAmount = BigInt(250);
+
+      const hash = await writeContractAsync({
+        address: USDC_ADDRESS,
+        abi: USDC_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS, paymentAmount],
+      });
+      
+      setApproveHash(hash);
+      console.log('Approval transaction sent:', hash);
+      
+      // Wait for approval confirmation
+      while (isApproveLoading || !approveReceipt) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      console.log('USDC approved:', approveReceipt.transactionHash);
+      setApprovalStatus('approved');
+      setShowApproveDialog(false);
+    } catch (error) {
+      console.error('Approval error:', error);
+      setApprovalStatus('error');
+    }
+  };
+
   const handlePayment = async (booking: any) => {
     if (!address || !userFid) {
       console.error('No address or FID available');
       return;
     }
 
-    const paymentAmount = parseUnits("250", 6); // USDC has 6 decimals, not 18
+    // Mock token with 0 decimals
+    const paymentAmount = BigInt(250);
 
     try {
-      // Check and approve if needed
+      // Check allowance first
       if (!allowance || allowance < paymentAmount) {
-        console.log('Approving USDC...');
-        const hash = await writeContractAsync({
-          address: USDC_ADDRESS,
-          abi: USDC_ABI,
-          functionName: "approve",
-          args: [CONTRACT_ADDRESS, paymentAmount],
-        });
-        
-        setApproveHash(hash);
-        
-        // Wait for approval
-        while (isApproveLoading || !approveReceipt) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        console.log('USDC approved:', approveReceipt.transactionHash);
+        setShowApproveDialog(true);
+        return;
       }
 
+      setPaymentStatus('pending');
       // Prepare guest emails array
       const guestEmails = booking.guests?.map((g: any) => g.email) || [];
 
@@ -199,7 +226,7 @@ export default function Payment() {
         abi: ABI,
         functionName: "makeUSDCPayment",
         args: [
-          userFid.toString(), // Convert FID to string
+          userFid.toString(),
           booking.name || "",
           booking.email || "",
           booking.additional_notes || "",
@@ -228,18 +255,40 @@ export default function Payment() {
 
       if (updateError) {
         console.error('Error updating booking status:', updateError);
+        setPaymentStatus('error');
+      } else {
+        setPaymentStatus('confirmed');
+        // Send payment notification
+        try {
+          await fetch('/api/booking-notifications', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Skip-Rate-Limit': 'true'
+            },
+            body: JSON.stringify({
+              fid: userFid,
+              type: 'payment',
+              referenceId: hash,
+              data: {
+                amount: '250',
+                txHash: hash
+              }
+            })
+          });
+        } catch (notifError) {
+          console.error('Failed to send payment notification:', notifError);
+        }
+
+        setShowPaymentSheet(false);
+        setIsChecked(false);
+
+        // Only open transaction URL after confirmation
+        await sdk.actions.openUrl(`https://basescan.org/tx/${hash}`);
       }
-
-      setShowPaymentSheet(false);
-      setIsChecked(false);
-
-      // Show success message and open transaction
-      await sdk.actions.close();
-      await sdk.actions.openUrl(`https://basescan.org/tx/${hash}`);
-
     } catch (error) {
       console.error('Payment error:', error);
-      await sdk.actions.close();
+      setPaymentStatus('error');
     }
   };
 
@@ -249,7 +298,7 @@ export default function Payment() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[calc(100vh-4rem)] bg-background overflow-y-auto pb-24">
       <div className="container max-w-md mx-auto p-4">
         <div className="space-y-4 mb-16">
           {pendingBookings.map((booking) => (
@@ -314,6 +363,34 @@ export default function Payment() {
           </DialogContent>
         </Dialog>
 
+        {/* Approve Dialog */}
+        <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Approve USDC</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You need to approve USDC spending before making the payment.
+                This is a one-time approval.
+              </p>
+              {approvalStatus === 'error' && (
+                <p className="text-sm text-red-500">
+                  Error approving USDC. Please try again.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button 
+                onClick={handleApprove}
+                disabled={approvalStatus === 'pending'}
+              >
+                {approvalStatus === 'pending' ? 'Approving...' : 'Approve USDC'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Payment Sheet */}
         {isChecked && selectedForDialog && (
           <Sheet open={showPaymentSheet} onOpenChange={setShowPaymentSheet}>
@@ -333,12 +410,17 @@ export default function Payment() {
                 </SheetDescription>
               </SheetHeader>
               <div className="mt-4">
+                {paymentStatus === 'error' && (
+                  <p className="text-sm text-red-500 mb-4">
+                    Error processing payment. Please try again.
+                  </p>
+                )}
                 <Button 
                   className="w-full"
                   onClick={() => handlePayment(selectedForDialog)}
-                  disabled={!isConnected || isPending}
+                  disabled={!isConnected || paymentStatus === 'pending'}
                 >
-                  {isPending ? "Confirming..." : "Confirm Payment"}
+                  {paymentStatus === 'pending' ? "Processing..." : "Confirm Payment"}
                 </Button>
               </div>
             </SheetContent>

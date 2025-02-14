@@ -84,12 +84,21 @@ export async function getLatestAnnouncements(limit: number = 5) {
  * @param {NotificationToken} token - Token details without created_at
  * @returns {Promise<void>}
  */
-export async function saveNotificationToken(token: Omit<NotificationToken, 'created_at'>) {
+export async function saveNotificationToken({ fid, token, url }: { 
+  fid: number;
+  token: string;
+  url: string;
+}) {
   const { error } = await supabase
     .from('notification_tokens')
-    .upsert([{ ...token, created_at: new Date().toISOString() }])
-  
-  if (error) throw error
+    .upsert({ 
+      fid,
+      token,
+      url,
+      created_at: new Date().toISOString()
+    });
+
+  if (error) throw error;
 }
 
 /**
@@ -102,9 +111,9 @@ export async function removeNotificationToken(fid: number) {
   const { error } = await supabase
     .from('notification_tokens')
     .delete()
-    .eq('fid', fid)
-  
-  if (error) throw error
+    .eq('fid', fid);
+
+  if (error) throw error;
 }
 
 /**
@@ -115,9 +124,33 @@ export async function removeNotificationToken(fid: number) {
 export async function getNotificationTokens(fid: number) {
   const { data, error } = await supabase
     .from('notification_tokens')
+    .select('token, url')
+    .eq('fid', fid);
+
+  if (error) throw error;
+  return data || [];
+}
+
+// Booking management
+export async function getBooking(bookingId: string) {
+  const { data, error } = await supabase
+    .from('cal_bookings')
     .select('*')
-    .eq('fid', fid)
-  
-  if (error) throw error
-  return data as NotificationToken[]
+    .eq('booking_id', bookingId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBookingStatus(bookingId: string, status: string, txHash?: string) {
+  const { error } = await supabase
+    .from('cal_bookings')
+    .update({ 
+      status,
+      ...(txHash ? { tx_hash: txHash } : {})
+    })
+    .eq('booking_id', bookingId);
+
+  if (error) throw error;
 }

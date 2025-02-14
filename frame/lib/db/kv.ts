@@ -50,6 +50,10 @@ export async function setLastSeenAnnouncementId(fid: number, announcementId: num
   await redis.set(LAST_SEEN_KEY(fid), announcementId)
 }
 
+// Notification token caching
+const NOTIFICATION_TOKEN_PREFIX = "notification_token:";
+const NOTIFICATION_TOKEN_TTL = 60 * 60 * 24; // 24 hours
+
 /**
  * Cache a user's notification token and URL for faster access
  * Tokens are cached for 24 hours to balance performance and freshness
@@ -58,8 +62,11 @@ export async function setLastSeenAnnouncementId(fid: number, announcementId: num
  * @param {string} url - Notification endpoint URL
  */
 export async function cacheNotificationToken(fid: number, token: string, url: string) {
-  const key = `notification_token:${fid}`
-  await redis.set(key, { token, url }, { ex: 60 * 60 * 24 }) // 24 hours expiry
+  await redis.set(
+    `${NOTIFICATION_TOKEN_PREFIX}${fid}`,
+    JSON.stringify({ token, url }),
+    { ex: NOTIFICATION_TOKEN_TTL }
+  );
 }
 
 /**
@@ -68,8 +75,9 @@ export async function cacheNotificationToken(fid: number, token: string, url: st
  * @returns {Promise<{ token: string; url: string } | null>} Cached token details or null if not found
  */
 export async function getCachedNotificationToken(fid: number) {
-  const key = `notification_token:${fid}`
-  return redis.get<{ token: string; url: string }>(key)
+  const data = await redis.get<string>(`${NOTIFICATION_TOKEN_PREFIX}${fid}`);
+  if (!data) return null;
+  return JSON.parse(data) as { token: string; url: string };
 }
 
 /**
@@ -77,7 +85,27 @@ export async function getCachedNotificationToken(fid: number) {
  * Used when tokens become invalid or notifications are disabled
  * @param {number} fid - Farcaster user ID
  */
-export async function removeCachedNotificationToken(fid: number): Promise<void> {
-  const key = `notification_token:${fid}`
-  await redis.del(key)
+export async function removeCachedNotificationToken(fid: number) {
+  await redis.del(`${NOTIFICATION_TOKEN_PREFIX}${fid}`);
+}
+
+// Rate limiting for notifications
+const RATE_LIMIT_PREFIX = "rate_limit:notification:";
+const RATE_LIMIT_WINDOW = 60; // 1 minute
+const RATE_LIMIT_MAX = 5; // 5 notifications per minute
+
+/**
+ * Check notification rate limit for a user
+ * @param {number} fid - Farcaster user ID
+ * @returns {Promise<boolean>} True if within rate limit, false otherwise
+ */
+export async function checkNotificationRateLimit(fid: number): Promise<boolean> {
+  const key = `${RATE_LIMIT_PREFIX}${fid}`;
+  const count = await redis.incr(key);
+  
+  if (count === 1) {
+    await redis.expire(key, RATE_LIMIT_WINDOW);
+  }
+  
+  return count <= RATE_LIMIT_MAX;
 } 

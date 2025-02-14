@@ -22,7 +22,7 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "Native Swap",
+    title: "life advice",
     openGraph: {
       title: "Life Advice",
       description: "A life advice app",

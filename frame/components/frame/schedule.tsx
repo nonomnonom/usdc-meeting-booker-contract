@@ -69,6 +69,7 @@ export default function CalBooking() {
           }
 
           try {
+            // Save to Supabase
             const { data, error } = await supabase
               .from('cal_bookings')
               .insert([bookingData])
@@ -77,6 +78,27 @@ export default function CalBooking() {
               console.error('Error saving to Supabase:', error)
             } else {
               console.log('Successfully saved to Supabase:', data)
+              
+              // Send notification if we have FID
+              if (userFid) {
+                try {
+                  await fetch('/api/booking-notifications', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      fid: userFid,
+                      type: 'booking',
+                      referenceId: bookingData.booking_id,
+                      data: {
+                        name: bookingData.name,
+                        date: new Date(bookingData.start_time).toLocaleDateString()
+                      }
+                    })
+                  });
+                } catch (notifError) {
+                  console.error('Failed to send notification:', notifError);
+                }
+              }
             }
           } catch (error) {
             console.error('Error in Supabase operation:', error)
@@ -95,7 +117,7 @@ export default function CalBooking() {
   }, [userFid])
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-[calc(100vh-4rem)] pb-16">
       <Cal 
         namespace="test"
         calLink="nouns-playground-b66zci/test"

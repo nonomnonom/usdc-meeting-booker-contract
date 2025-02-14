@@ -39,24 +39,29 @@ export async function POST(request: NextRequest) {
         case "frame_added":
           if (data.event.notificationDetails) {
             const { token, url } = data.event.notificationDetails;
-            // Store token in both Supabase and Redis
-            await Promise.all([
-              saveNotificationToken({ fid: data.fid, token, url }),
-              cacheNotificationToken(data.fid, token, url),
-            ]);
+            try {
+              // Store token in both Supabase and Redis
+              await Promise.all([
+                saveNotificationToken({ fid: data.fid, token, url }),
+                cacheNotificationToken(data.fid, token, url),
+              ]);
 
-            // Send welcome notification
-            await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                notificationId: `welcome:${data.fid}`,
-                title: "Welcome to Native Swap! 👋",
-                body: "Thanks for adding Native Swap. You will receive notifications for successful swaps and announcements.",
-                targetUrl: process.env.NEXT_PUBLIC_URL!,
-                tokens: [token],
-              }),
-            });
+              // Send welcome notification
+              await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  notificationId: `welcome:${data.fid}:${Date.now()}`,
+                  title: "Welcome to Life Advice! 👋",
+                  body: "You'll receive notifications for your bookings and updates. Thanks for joining!",
+                  targetUrl: process.env.NEXT_PUBLIC_URL!,
+                  tokens: [token],
+                }),
+              });
+            } catch (tokenError) {
+              console.error('Error saving notification token:', tokenError);
+              // Continue execution even if token save fails
+            }
           }
           break;
 
@@ -67,10 +72,14 @@ export async function POST(request: NextRequest) {
         case "notifications_enabled":
           if (data.event.notificationDetails) {
             const { token, url } = data.event.notificationDetails;
-            await Promise.all([
-              saveNotificationToken({ fid: data.fid, token, url }),
-              cacheNotificationToken(data.fid, token, url),
-            ]);
+            try {
+              await Promise.all([
+                saveNotificationToken({ fid: data.fid, token, url }),
+                cacheNotificationToken(data.fid, token, url),
+              ]);
+            } catch (tokenError) {
+              console.error('Error saving notification token:', tokenError);
+            }
           }
           break;
 
@@ -105,6 +114,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Webhook error:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
