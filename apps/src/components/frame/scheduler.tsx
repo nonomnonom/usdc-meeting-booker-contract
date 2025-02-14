@@ -39,15 +39,20 @@ export function Scheduler({ onBookingCreated }: SchedulerProps) {
         cal("on", {
           action: "bookingSuccessful",
           callback: (event) => {
+            console.log("Booking event received:", event.detail);
+            
             // Access booking data safely
             const bookingData = event.detail?.data?.booking;
             if (bookingData && 
                 typeof bookingData === 'object' && 
                 'uid' in bookingData && 
                 typeof bookingData.uid === 'string') {
+              console.log("Booking ID:", bookingData.uid);
               // Instead of immediately redirecting, show the payment dialog
               setCurrentBookingId(bookingData.uid);
               setShowPaymentDialog(true);
+            } else {
+              console.error("Invalid booking data received:", bookingData);
             }
           },
         });

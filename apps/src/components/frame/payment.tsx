@@ -40,20 +40,25 @@ export function Payment({ bookingId }: PaymentProps) {
   useEffect(() => {
     const fetchBooking = async () => {
       if (!bookingId) {
+        console.log("No booking ID provided to Payment component");
         setError("No booking selected");
         setIsLoading(false);
         return;
       }
 
+      console.log("Fetching booking details for ID:", bookingId);
       try {
         const response = await fetch(`/api/bookings/${bookingId}`);
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to fetch booking");
-        }
         const data = await response.json();
-        setBooking(data);
+        
+        if (data.status === "error") {
+          throw new Error(data.message || "Failed to fetch booking");
+        }
+        
+        console.log("Booking details received:", data);
+        setBooking(data.data);
       } catch (err) {
+        console.error("Error fetching booking:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch booking");
       } finally {
         setIsLoading(false);

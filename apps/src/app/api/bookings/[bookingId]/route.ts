@@ -12,35 +12,26 @@ export async function GET(
   request: NextRequest,
   context: { params: { bookingId: string } }
 ) {
-  const bookingId = context.params.bookingId;
-  
   try {
     const response = await fetch(
-      `${CAL_API_URL}/bookings/${bookingId}`,
+      `${CAL_API_URL}/bookings/${context.params.bookingId}`,
       {
-        method: "GET",
         headers: {
           Authorization: `Bearer ${CAL_API_KEY!}`,
-          "Content-Type": "application/json",
-        },
-        cache: 'no-store'
+          "cal-api-version": "2024-08-13"
+        }
       }
     );
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: "Failed to fetch booking" }));
-      return Response.json(
-        { error: error.message || "Failed to fetch booking" },
-        { status: response.status }
-      );
-    }
-
-    const booking = await response.json();
-    return Response.json(booking);
+    const data = await response.json();
+    return Response.json(data);
   } catch (error) {
     console.error("Error fetching booking:", error);
     return Response.json(
-      { error: "Failed to fetch booking" },
+      { 
+        status: "error",
+        message: "Failed to fetch booking"
+      },
       { status: 500 }
     );
   }
@@ -54,40 +45,33 @@ export async function PATCH(
   request: NextRequest,
   context: { params: { bookingId: string } }
 ) {
-  const bookingId = context.params.bookingId;
-
   try {
     const body = await request.json();
     const { status } = body as { status: CalBooking["status"] };
 
     const response = await fetch(
-      `${CAL_API_URL}/bookings/${bookingId}`,
+      `${CAL_API_URL}/bookings/${context.params.bookingId}`,
       {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${CAL_API_KEY!}`,
-          "Content-Type": "application/json",
+          "cal-api-version": "2024-08-13",
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ status }),
-        cache: 'no-store'
+        body: JSON.stringify({ status })
       }
     );
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: "Failed to update booking" }));
-      return Response.json(
-        { error: error.message || "Failed to update booking" },
-        { status: response.status }
-      );
-    }
-
-    const booking = await response.json();
-    return Response.json(booking);
+    const data = await response.json();
+    return Response.json(data);
   } catch (error) {
     console.error("Error updating booking:", error);
     return Response.json(
-      { error: "Failed to update booking" },
+      { 
+        status: "error",
+        message: "Failed to update booking"
+      },
       { status: 500 }
     );
   }
-} 
+}
