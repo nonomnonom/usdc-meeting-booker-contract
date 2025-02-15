@@ -11,7 +11,7 @@ export default function Home() {
         <section className="flex min-h-[60vh] flex-col items-center justify-center py-8">
           {/* Logo */}
           <div className="relative mb-6">
-            <div className="h-20 w-20 rounded-full bg-blue-500 sm:h-28 sm:w-28" />
+            <div className="h-20 w-20 rounded-full bg-custom-blue sm:h-28 sm:w-28" />
           </div>
 
           <div className="text-center">
@@ -35,4 +35,3 @@ export default function Home() {
     </div>
   )
 }
-

@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
               });
             } catch (tokenError) {
               console.error('Error saving notification token:', tokenError);
-              // Continue execution even if token save fails
             }
           }
           break;

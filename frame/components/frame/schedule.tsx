@@ -82,20 +82,28 @@ export default function CalBooking() {
               // Send notification if we have FID
               if (userFid) {
                 try {
-                  await fetch('/api/booking-notifications', {
+                  const formattedDate = new Date(bookingData.start_time).toLocaleDateString();
+                  const formattedTime = new Date(bookingData.start_time).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  });
+
+                  await fetch('/api/notifications', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'X-Skip-Rate-Limit': 'true'
+                    },
                     body: JSON.stringify({
                       fid: userFid,
-                      type: 'booking',
-                      referenceId: bookingData.booking_id,
-                      data: {
-                        name: bookingData.name,
-                        date: new Date(bookingData.start_time).toLocaleDateString()
-                      }
+                      notificationId: `booking:${bookingData.booking_id}`,
+                      title: "Booking Created! 📅",
+                      body: `Your booking for ${formattedDate} at ${formattedTime} has been created. Payment is required to confirm.`,
+                      priority: "high"
                     })
                   });
                 } catch (notifError) {
+                  // Log error but don't block the booking process
                   console.error('Failed to send notification:', notifError);
                 }
               }
