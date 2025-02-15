@@ -1,5 +1,5 @@
 export async function GET() {
-  const appUrl = "https://lifeadvice-six.vercel.app";
+  const appUrl = "https://jake-psi.vercel.app";
 
   const config = {
     accountAssociation: {
