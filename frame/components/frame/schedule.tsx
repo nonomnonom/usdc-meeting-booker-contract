@@ -20,7 +20,7 @@ export default function CalBooking() {
 
   useEffect(() => {
     (async function() {
-      const cal = await getCalApi({"namespace":"test"})
+      const cal = await getCalApi({"namespace":"life-advice"})
       
       cal("ui", {
         "hideEventTypeDetails": false,
@@ -65,51 +65,106 @@ export default function CalBooking() {
             created_at: new Date().toISOString(),
             
             // Add Farcaster FID if available
-            fid: userFid || null
+            fid: userFid || null  // Keep null initially. Only update if we have a valid FID.
           }
 
           try {
-            // Save to Supabase
-            const { data, error } = await supabase
+            // First check if booking exists, AND require a valid FID.
+            const { data: existingBooking, error: checkError } = await supabase
               .from('cal_bookings')
-              .insert([bookingData])
+              .select('*')
+              .eq('booking_id', bookingData.booking_id)
+              .not('fid', 'is', null) // IMPORTANT: Check for existing bookings with a valid FID.
+              .single();
 
-            if (error) {
-              console.error('Error saving to Supabase:', error)
+
+            if (checkError && checkError.code !== 'PGRST116') {
+              console.error('Error checking existing booking:', checkError);
+              return;
+            }
+
+            let finalBooking;
+
+             if (existingBooking) {
+              //If booking exists WITH fid, we do nothing.  It's already correct.
+              finalBooking = existingBooking;
+
             } else {
-              console.log('Successfully saved to Supabase:', data)
-              
-              // Send notification if we have FID
-              if (userFid) {
-                try {
-                  const formattedDate = new Date(bookingData.start_time).toLocaleDateString();
-                  const formattedTime = new Date(bookingData.start_time).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  });
+                //If there's no existing booking with a valid FID,  then EITHER:
+                // 1.  There's NO booking with that ID at all.
+                // 2.  There IS a booking with that ID, but it has a NULL FID.
+                // In either case, we proceed ONLY if we have a userFid.
+                if (userFid) {
+                    //Try to update an existing record (in case one exists without a FID)
+                    const { data: updatedBooking, error: updateError } = await supabase
+                        .from('cal_bookings')
+                        .update({ ...bookingData, fid: userFid }) // Set the FID.
+                        .eq('booking_id', bookingData.booking_id)
+                        .select()
+                        .single();
 
-                  await fetch('/api/notifications', {
-                    method: 'POST',
-                    headers: { 
-                      'Content-Type': 'application/json',
-                      'X-Skip-Rate-Limit': 'true'
-                    },
-                    body: JSON.stringify({
-                      fid: userFid,
-                      notificationId: `booking:${bookingData.booking_id}`,
-                      title: "Booking Created! 📅",
-                      body: `Your booking for ${formattedDate} at ${formattedTime} has been created. Payment is required to confirm.`,
-                      priority: "high"
-                    })
-                  });
-                } catch (notifError) {
-                  // Log error but don't block the booking process
-                  console.error('Failed to send notification:', notifError);
+                    if (updateError && updateError.code !== 'PGRST116') { // Check for error OTHER than "no rows updated"
+                        console.error('Error updating booking:', updateError);
+                        return;
+                    }
+
+
+                    if (updatedBooking) {
+                        //Update was successful
+                        finalBooking = updatedBooking;
+                    } else {
+                        //No record was updated, so create a new one.  (This is the original insert).
+                        const { data: newBooking, error: insertError } = await supabase
+                            .from('cal_bookings')
+                            .insert([{ ...bookingData, fid: userFid }]) // Set FID on insert
+                            .select()
+                            .single();
+
+                        if (insertError) {
+                            console.error('Error creating booking:', insertError);
+                            return;
+                        }
+                        finalBooking = newBooking;
+                    }
+                } else {
+                    // We don't have a userFid, so don't do anything.
+                    console.warn("Booking created without FID.  Skipping Supabase operation.");
+                    return;
                 }
+            }
+            
+            // Send notification only if we have FID and it's a new or updated booking
+            if (userFid && finalBooking) {
+              try {
+                const notificationData = {
+                  fid: userFid,
+                  notificationId: `booking:${bookingData.booking_id}:${Date.now()}`,
+                  title: "Booking Confirmed! 📅",
+                  body: `Your booking with ${bookingData.organizer_name} for ${new Date(bookingData.start_time).toLocaleDateString()} is confirmed.`,
+                  targetUrl: `${process.env.NEXT_PUBLIC_URL}/schedule?booking=${bookingData.booking_id}`,
+                  priority: "high" as const
+                };
+
+                const response = await fetch('/api/notifications', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Skip-Rate-Limit': 'true'
+                  },
+                  body: JSON.stringify(notificationData)
+                });
+
+                if (!response.ok) {
+                  throw new Error('Failed to send notification: ' + await response.text());
+                }
+
+                console.log('Booking notification sent successfully');
+              } catch (notifError) {
+                console.error('Failed to send booking notification:', notifError);
               }
             }
           } catch (error) {
-            console.error('Error in Supabase operation:', error)
+            console.error('Error in booking operation:', error)
           }
         },
       })
@@ -127,8 +182,8 @@ export default function CalBooking() {
   return (
     <div className="w-full h-[calc(100vh-4rem)] pb-16">
       <Cal 
-        namespace="test"
-        calLink="nouns-playground-b66zci/test"
+        namespace="life-advice"
+        calLink="0fjake/life-advice-frame"
         style={{width:"100%", height:"100%", overflow:"scroll"}}
         config={{
           layout: "month_view"

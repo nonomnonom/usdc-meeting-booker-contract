@@ -3,34 +3,45 @@
 //landing page life advice
 
 import { Reviews } from "@/components/reviews"
+import Image from "next/image"
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto">
-      <main className="container mx-auto px-4 pb-24">
-        <section className="flex min-h-[60vh] flex-col items-center justify-center py-8">
+    <div className="h-full overflow-y-auto">
+      <main className="container mx-auto px-4">
+        <section className="flex min-h-[40vh] flex-col items-center justify-center py-8">
           {/* Logo */}
-          <div className="relative mb-6">
-            <div className="h-20 w-20 rounded-full bg-custom-blue sm:h-28 sm:w-28" />
+          <div className="relative mb-8 w-24 h-24 sm:w-32 sm:h-32">
+            <Image
+              src="/icon.jpg"
+              alt="Logo"
+              fill
+              className="rounded-full object-cover"
+              priority
+            />
           </div>
 
-          <div className="text-center">
-            <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-4xl">Jake</h1>
-            <div className="inline-flex items-center justify-center">
-              <h2 className="text-lg font-medium text-gray-600 sm:text-2xl">Life Advice</h2>
+          <div className="text-center space-y-4">
+            <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl">
+              Jake
+            </h1>
+            <div className="inline-flex flex-col items-center justify-center space-y-2">
+              <h2 className="scroll-m-20 text-2xl font-semibold tracking-tight text-gray-700 sm:text-3xl">
+                LIFE ADVICE
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                $250 / hour session
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="py-8">
+        <section className="py-8 mb-16">
+          <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mb-6 text-center">
+            What People Say
+          </h3>
           <Reviews />
         </section>
-
-        <footer className="py-6 text-center">
-          <a href="https://0FJAKE.com/" className="text-sm text-gray-500 transition-colors hover:text-gray-700">
-            0FJAKE.com
-          </a>
-        </footer>
       </main>
     </div>
   )

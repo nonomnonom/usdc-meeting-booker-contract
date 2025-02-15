@@ -5,8 +5,19 @@
  */
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL')
+}
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY')
+}
+
+// Initialize Supabase client
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 /**
  * Type definition for announcement data
@@ -27,9 +38,9 @@ export type NotificationToken = {
   token: string
   url: string
   created_at: string
+  last_used?: string
+  is_valid: boolean
 }
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
 
 /**
  * Retrieves all announcements from the database
@@ -85,20 +96,22 @@ export async function getLatestAnnouncements(limit: number = 5) {
  * @returns {Promise<void>}
  */
 export async function saveNotificationToken({ fid, token, url }: { 
-  fid: number;
-  token: string;
-  url: string;
+  fid: number
+  token: string
+  url: string
 }) {
   const { error } = await supabase
     .from('notification_tokens')
-    .upsert({ 
+    .upsert({
       fid,
       token,
       url,
-      created_at: new Date().toISOString()
-    });
+      created_at: new Date().toISOString(),
+      is_valid: true,
+      last_used: null
+    })
 
-  if (error) throw error;
+  if (error) throw error
 }
 
 /**
@@ -110,14 +123,14 @@ export async function saveNotificationToken({ fid, token, url }: {
 export async function removeNotificationToken(fid: number) {
   const { error } = await supabase
     .from('notification_tokens')
-    .delete()
-    .eq('fid', fid);
+    .update({ is_valid: false })
+    .eq('fid', fid)
 
-  if (error) throw error;
+  if (error) throw error
 }
 
 /**
- * Retrieves all notification tokens for a user
+ * Retrieves all valid notification tokens for a user
  * @param {number} fid - Farcaster user ID
  * @returns {Promise<NotificationToken[]>} Array of token details
  */
@@ -125,10 +138,43 @@ export async function getNotificationTokens(fid: number) {
   const { data, error } = await supabase
     .from('notification_tokens')
     .select('token, url')
-    .eq('fid', fid);
+    .eq('fid', fid)
+    .eq('is_valid', true)
+  
+  if (error) throw error
+  return data || []
+}
 
-  if (error) throw error;
-  return data || [];
+/**
+ * Updates the last used timestamp for a notification token
+ * @param {number} fid - Farcaster user ID
+ * @param {string} token - The token that was used
+ * @returns {Promise<void>}
+ */
+export async function updateTokenLastUsed(fid: number, token: string) {
+  const { error } = await supabase
+    .from('notification_tokens')
+    .update({ last_used: new Date().toISOString() })
+    .eq('fid', fid)
+    .eq('token', token)
+
+  if (error) throw error
+}
+
+/**
+ * Marks a token as invalid
+ * @param {number} fid - Farcaster user ID
+ * @param {string} token - The invalid token
+ * @returns {Promise<void>}
+ */
+export async function invalidateToken(fid: number, token: string) {
+  const { error } = await supabase
+    .from('notification_tokens')
+    .update({ is_valid: false })
+    .eq('fid', fid)
+    .eq('token', token)
+
+  if (error) throw error
 }
 
 // Booking management
@@ -137,10 +183,10 @@ export async function getBooking(bookingId: string) {
     .from('cal_bookings')
     .select('*')
     .eq('booking_id', bookingId)
-    .single();
+    .single()
 
-  if (error) throw error;
-  return data;
+  if (error) throw error
+  return data
 }
 
 export async function updateBookingStatus(bookingId: string, status: string, txHash?: string) {
@@ -150,7 +196,7 @@ export async function updateBookingStatus(bookingId: string, status: string, txH
       status,
       ...(txHash ? { tx_hash: txHash } : {})
     })
-    .eq('booking_id', bookingId);
+    .eq('booking_id', bookingId)
 
-  if (error) throw error;
+  if (error) throw error
 }

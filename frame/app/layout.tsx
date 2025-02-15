@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { Sora } from "next/font/google";
 
 import "@/app/globals.css";
 import { Providers } from "@/app/providers";
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+});
 
 export const metadata: Metadata = {
   title: "Life Advice",
@@ -15,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="overflow-y-hidden">
+      <body className={`${sora.variable} font-sans overflow-y-hidden`}>
         <Providers>{children}</Providers>
       </body>
     </html>
