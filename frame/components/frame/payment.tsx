@@ -13,9 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/db/supbase";
 import { Loader2 } from "lucide-react";
 
-const USDC_ADDRESS = "0x833615562852909e079C1304892587943d2879bC";
-const USDC_DECIMALS = 18;
-const TARGET_ADDRESS = "0x7e176d20975760B849573e4b918C93ccdd9e32A4"; // Address to send to
+const USDC_ADDRESS = "0x833615562852909e079C1304892587943d2879bC"; // USDC address
+const USDC_DECIMALS = 18; // USDC decimals
+const TARGET_ADDRESS = "0x7e176d20975760B849573e4b918C93ccdd9e32A4"; // Jake address
 
 // Add transaction state type
 type TransactionState = 'idle' | 'pending' | 'confirming' | 'confirmed' | 'error';
