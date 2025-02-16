@@ -13,8 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/db/supbase";
 import { Loader2 } from "lucide-react";
 
-const USDC_ADDRESS = "0x833615562852909e079C1304892587943d2879bC"; // USDC address
-const USDC_DECIMALS = 18; // USDC decimals
+const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC address mainet
+const USDC_DECIMALS = 6; //  USDC decimals
 const TARGET_ADDRESS = "0x7e176d20975760B849573e4b918C93ccdd9e32A4"; // Jake address
 
 // Add transaction state type
