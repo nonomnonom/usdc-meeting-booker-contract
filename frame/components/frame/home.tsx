@@ -26,7 +26,7 @@ export default function Home() {
               Jake
             </h1>
             <div className="inline-flex flex-col items-center justify-center space-y-2">
-              <h2 className="scroll-m-20 text-2xl font-extrabold tracking-tight text-gray-700 sm:text-3xl">
+              <h2 className="scroll-m-20 text-2xl tracking-tight text-gray-700 sm:text-3xl">
                 LIFE ADVICE
               </h2>
               <p className="text-lg text-muted-foreground">
@@ -38,7 +38,7 @@ export default function Home() {
 
         <section className="py-8 mb-16">
           <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mb-6 text-center">
-            What People Say
+            Reviews
           </h3>
           <Reviews />
         </section>

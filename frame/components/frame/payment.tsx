@@ -26,72 +26,63 @@ const PendingBookingCard = ({ booking, onCardClick }: {
     onCardClick: () => void;
 }) => {
     const startTime = booking?.start_time ? new Date(booking.start_time) : null;
-   
-
-    // Format date and time if valid dates are available
     const formattedDate = startTime && !isNaN(startTime.getTime())
         ? startTime.toLocaleDateString()
         : 'Date not available';
-
-   
+    const formattedTime = startTime && !isNaN(startTime.getTime())
+        ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'Time not available';
 
     return (
         <Card
-            className="relative mb-4 p-4 rounded-lg border cursor-pointer hover:bg-stone-50"
+            className="w-full max-w-sm mx-auto p-4 space-y-4 cursor-pointer hover:bg-stone-50"
             onClick={onCardClick}
         >
-            <div className="space-y-3">
-                <div>
-                    <p className="font-medium text-base">Booking Details</p>
-                    <p className="text-sm text-stone-600">{booking?.event_type}</p>
-                </div>
+            <div className="space-y-1">
+                <h2 className="text-xs uppercase text-muted-foreground">Booking Details</h2>
+                <h1 className="text-xl font-bold">{booking?.event_type || "LIFE ADVICE (FRAME)"}</h1>
+            </div>
 
-                <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">Date:</span>
-                        <span>{formattedDate}</span>
+            <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span>{formattedDate}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time:</span>
+                    <span>{formattedTime} -</span>
+                </div>
+                {booking?.organizer_name && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Host:</span>
+                        <span>{booking.organizer_name}</span>
                     </div>
-                 
-                    {booking?.organizer_name && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">Host:</span>
-                            <span>{booking.organizer_name}</span>
-                        </div>
-                    )}
-                    {booking?.location && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">Location:</span>
-                            <span>{booking.location}</span>
-                        </div>
-                    )}
-                    {booking?.guests?.length > 0 && (
-                        <div className="flex gap-2 text-sm">
-                            <span className="font-medium">Guests:</span>
-                            <div className="flex flex-col">
-                                {booking.guests.map((guest: any, index: number) => (
-                                    <span key={index} className="text-stone-600">{guest.email}</span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {booking?.additional_notes && (
-                    <div className="text-sm border-t pt-2 mt-2">
-                        <span className="font-medium">Notes:</span>
-                        <p className="text-stone-600 mt-1 line-clamp-2">{booking.additional_notes}</p>
+                )}
+                {booking?.location && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Location:</span>
+                        <span>{booking.location}</span>
                     </div>
                 )}
             </div>
 
-            <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                <span className="text-sm text-yellow-500 font-medium">pending</span>
+            {booking?.additional_notes && (
+                <div className="pt-2 border-t border-muted">
+                    <h3 className="text-sm font-medium mb-1">Notes:</h3>
+                    <p className="text-sm text-muted-foreground">{booking.additional_notes}</p>
+                </div>
+            )}
+
+            <div className="pt-2 border-t border-muted flex justify-between items-center">
+                <span className="text-sm font-medium text-yellow-500">pending</span>
                 <Button
+                    variant="outline"
                     size="sm"
                     onClick={(e) => {
                         e.stopPropagation();
                         onCardClick();
                     }}
+                    className="h-8 px-3 text-xs"
                 >
                     Pay Now
                 </Button>
@@ -105,77 +96,66 @@ const HistoryBookingCard = ({ booking, onCardClick }: {
     onCardClick: () => void;
 }) => {
     const startTime = new Date(booking?.start_time);
-   
+    const formattedTime = startTime && !isNaN(startTime.getTime())
+        ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'Time not available';
 
     return (
         <Card
-            className="relative mb-4 p-4 rounded-lg border cursor-pointer hover:bg-stone-50"
+            className="w-full max-w-sm mx-auto p-4 space-y-4 cursor-pointer hover:bg-stone-50"
             onClick={onCardClick}
         >
-            <div className="space-y-3 pr-8">
-                <div>
-                    <p className="font-medium text-base">Booking Details</p>
-                    <p className="text-sm text-stone-600">{booking?.event_type}</p>
-                </div>
+            <div className="space-y-1">
+                <h2 className="text-xs uppercase text-muted-foreground">Booking Details</h2>
+                <h1 className="text-xl font-bold">{booking?.event_type || "LIFE ADVICE (FRAME)"}</h1>
+            </div>
 
-                <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">Date:</span>
-                        <span>{startTime.toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">Time:</span>
-                        <span>
-                            {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                        
-                        </span>
-                    </div>
-                    {booking?.organizer_name && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">Host:</span>
-                            <span>{booking.organizer_name}</span>
-                        </div>
-                    )}
-                    {booking?.location && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium">Location:</span>
-                            <span>{booking.location}</span>
-                        </div>
-                    )}
-                    {booking?.guests?.length > 0 && (
-                        <div className="flex gap-2 text-sm">
-                            <span className="font-medium">Guests:</span>
-                            <div className="flex flex-col">
-                                {booking.guests.map((guest: any, index: number) => (
-                                    <span key={index} className="text-stone-600">{guest.email}</span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+            <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span>{startTime.toLocaleDateString()}</span>
                 </div>
-
-                {booking?.additional_notes && (
-                    <div className="text-sm border-t pt-2 mt-2">
-                        <span className="font-medium">Notes:</span>
-                        <p className="text-stone-600 mt-1 line-clamp-2">{booking.additional_notes}</p>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time:</span>
+                    <span>{formattedTime} -</span>
+                </div>
+                {booking?.organizer_name && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Host:</span>
+                        <span>{booking.organizer_name}</span>
+                    </div>
+                )}
+                {booking?.location && (
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Location:</span>
+                        <span>{booking.location}</span>
                     </div>
                 )}
             </div>
 
-            <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                <span className={`text-sm font-medium ${booking.status === 'confirmed' ? 'text-green-500' : 'text-red-500'}`}>
+            {booking?.additional_notes && (
+                <div className="pt-2 border-t border-muted">
+                    <h3 className="text-sm font-medium mb-1">Notes:</h3>
+                    <p className="text-sm text-muted-foreground">{booking.additional_notes}</p>
+                </div>
+            )}
+
+            <div className="pt-2 border-t border-muted flex justify-between items-center">
+                <span className={`text-sm font-medium ${booking.status === 'confirmed' ? 'text-green-600' : 'text-red-500'}`}>
                     {booking.status}
                 </span>
                 {booking.status === 'confirmed' && booking.tx_hash && (
-                    <a
-                        href={`https://sepolia.basescan.org//tx/${booking.tx_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-stone-500 hover:text-stone-700 flex items-center gap-1"
-                        onClick={(e) => e.stopPropagation()}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`https://sepolia.basescan.org//tx/${booking.tx_hash}`, '_blank');
+                        }}
                     >
                         View tx
-                    </a>
+                    </Button>
                 )}
             </div>
         </Card>

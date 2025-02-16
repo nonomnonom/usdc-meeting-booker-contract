@@ -10,7 +10,7 @@ const frame = {
     title: "Life Advice",
     action: {
       type: "launch_frame",
-      name: "Life Advice",
+      name: "Book a call ",
       url: appUrl,
       splashImageUrl: `${appUrl}/splash.png`,
       splashBackgroundColor: "#f7f7f7",

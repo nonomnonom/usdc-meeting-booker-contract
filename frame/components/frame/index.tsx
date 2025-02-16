@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import sdk from "@farcaster/frame-sdk";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Home as HomeIcon, Calendar, CreditCard, Plus } from "lucide-react";
+import { Home as HomeIcon, Calendar, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import HomePage from "./home";
 import Schedule from "./schedule";
@@ -13,14 +13,11 @@ import Payment from "./payment";
 export default function Frame() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
-  const [isFrameAdded, setIsFrameAdded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       await sdk.actions.ready();
       const context = await sdk.context;
-      // Check if frame is already added from context
-      setIsFrameAdded(context.client?.added || false);
       setIsSDKLoaded(true);
     };
     if (sdk && !isSDKLoaded) {
@@ -28,17 +25,6 @@ export default function Frame() {
       load();
     }
   }, [isSDKLoaded]);
-
-  const handleAddFrame = async () => {
-    try {
-      const result = await sdk.actions.addFrame();
-      if (result.notificationDetails) {
-        setIsFrameAdded(true);
-      }
-    } catch (error) {
-      console.error('Error adding frame:', error);
-    }
-  };
 
   if (!isSDKLoaded) {
     return (
@@ -50,20 +36,6 @@ export default function Frame() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Add Frame Button - Only show if frame is not added */}
-      {!isFrameAdded && (
-        <div className="fixed top-4 right-4 z-50">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleAddFrame}
-            className="rounded-full hover:bg-gray-100"
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
-        </div>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-[100vh] flex flex-col">
         {/* Main Content Area */}
         <ScrollArea className="flex-1 h-[calc(100vh-4rem)]">
