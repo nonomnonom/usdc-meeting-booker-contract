@@ -30,7 +30,7 @@ export default function Home() {
                 LIFE ADVICE
               </h2>
               <p className="text-lg text-muted-foreground">
-                $250 / hour session
+                $125 / hour session
               </p>
             </div>
           </div>

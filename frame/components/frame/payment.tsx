@@ -322,7 +322,7 @@ export default function Payment() {
             return;
         }
 
-        const paymentAmount = parseUnits('250', USDC_DECIMALS);
+        const paymentAmount = parseUnits('125', USDC_DECIMALS);
 
         try {
             setTransactionState('pending');
