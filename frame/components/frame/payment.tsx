@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 
 const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC address mainet
 const USDC_DECIMALS = 6; //  USDC decimals
-const TARGET_ADDRESS = "0x7e176d20975760B849573e4b918C93ccdd9e32A4"; // Jake address
+const TARGET_ADDRESS = "0x5B759eF9085C80CCa14F6B54eE24373f8C765474"; // Jake address
 
 // Add transaction state type
 type TransactionState = 'idle' | 'pending' | 'confirming' | 'confirmed' | 'error';
