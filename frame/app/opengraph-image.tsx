@@ -17,7 +17,12 @@ export default async function Image() {
   return new ImageResponse(
     (
       <div tw="h-full w-full flex flex-col justify-center items-center bg-white">
-        <div tw="w-[180px] h-[180px] rounded-full bg-blue-500" />
+        <img 
+          src="icon.png"
+          width="180"
+          height="180"
+          tw="mb-10"
+        />
         <h1 tw="text-[120px] font-black text-[#14171F] tracking-tight mt-10">
           LIFE ADVICE 
         </h1>
