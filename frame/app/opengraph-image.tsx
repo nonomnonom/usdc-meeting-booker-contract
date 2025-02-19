@@ -37,7 +37,7 @@ export default async function Image() {
           letterSpacing: "-0.025em",
         }}
       >
-        LIFE ADVICE
+        <strong>LIFE ADVICE</strong>
       </div>
     </div>,
     {
@@ -45,4 +45,3 @@ export default async function Image() {
     },
   )
 }
-
