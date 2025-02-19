@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export const alt = "Life Advice";
 export const size = {
@@ -8,17 +10,29 @@ export const size = {
 export const contentType = "image/png";
 
 export default async function Image() {
+  const poppinsBlack = readFileSync(
+    join(process.cwd(), "public/Poppins-Black.ttf")
+  );
+
   return new ImageResponse(
     (
       <div tw="h-full w-full flex flex-col justify-center items-center bg-white">
         <div tw="w-[180px] h-[180px] rounded-full bg-blue-500" />
-        <h1 tw="text-[120px] font-bold text-[#14171F] tracking-tight mt-10">
-          LIFE ADVICE
+        <h1 tw="text-[120px] font-black text-[#14171F] tracking-tight mt-10">
+          LIFE ADVICE 
         </h1>
       </div>
     ),
     {
       ...size,
+      fonts: [
+        {
+          name: "Poppins",
+          data: poppinsBlack,
+          weight: 900,
+          style: "normal",
+        },
+      ],
     }
   );
 }
