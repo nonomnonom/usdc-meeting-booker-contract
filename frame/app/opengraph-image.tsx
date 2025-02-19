@@ -12,7 +12,7 @@ export default async function Image() {
     (
       <div tw="h-full w-full flex flex-col justify-center items-center bg-white">
         <div tw="w-[180px] h-[180px] rounded-full bg-blue-500" />
-        <h1 tw="text-[72px] font-black text-[#14171F] tracking-tight mt-10">
+        <h1 tw="text-[120px] font-bold text-[#14171F] tracking-tight mt-10">
           LIFE ADVICE
         </h1>
       </div>
