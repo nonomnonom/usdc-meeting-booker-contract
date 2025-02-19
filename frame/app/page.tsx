@@ -7,7 +7,7 @@ const frame = {
   version: "next",
   imageUrl: `${appUrl}/opengraph-image`,
   button: {
-    title: "Book a call",
+    title: "Launch Frame",
     action: {
       type: "launch_frame",
       name: "Book a call ",
